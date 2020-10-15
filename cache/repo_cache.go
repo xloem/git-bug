@@ -204,9 +204,9 @@ func (c *RepoCache) buildCache() error {
 
 	allBugs := bug.ReadAllLocalBugs(c.repo)
 
-	err := c.ensureBleveIndex()
+	err := c.createBleveIndex()
 	if err != nil {
-		return fmt.Errorf("Unable to create or open search cache. Error: %v", err)
+		return fmt.Errorf("Unable to create search cache. Error: %v", err)
 	}
 
 	for b := range allBugs {
