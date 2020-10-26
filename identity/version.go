@@ -2,19 +2,22 @@ package identity
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
 
+	"github.com/MichaelMure/git-bug/entity"
 	"github.com/MichaelMure/git-bug/repository"
 	"github.com/MichaelMure/git-bug/util/lamport"
 	"github.com/MichaelMure/git-bug/util/text"
 )
 
 // 1: original format
-const formatVersion = 1
+// 2: Identity Ids are generated from the first Version serialized data instead of from the first git commit
+const formatVersion = 2
 
 // Version is a complete set of information about an Identity at a point in time.
 type Version struct {
@@ -37,14 +40,17 @@ type Version struct {
 	// device) as well as revoke key.
 	keys []*Key
 
-	// This optional array is here to ensure a better randomness of the identity id to avoid collisions.
+	// mandatory random bytes to ensure a better randomness of the data of the first
+	// version of a bug, used to later generate the ID
+	// len(Nonce) should be > 20 and < 64 bytes
 	// It has no functional purpose and should be ignored.
-	// It is advised to fill this array if there is not enough entropy, e.g. if there is no keys.
 	nonce []byte
 
 	// A set of arbitrary key/value to store metadata about a version or about an Identity in general.
 	metadata map[string]string
 
+	// Not serialized. Store the version's id in memory.
+	id entity.Id
 	// Not serialized
 	commitHash repository.Hash
 }
@@ -60,8 +66,33 @@ type VersionJSON struct {
 	Login     string            `json:"login,omitempty"`
 	AvatarUrl string            `json:"avatar_url,omitempty"`
 	Keys      []*Key            `json:"pub_keys,omitempty"`
-	Nonce     []byte            `json:"nonce,omitempty"`
+	Nonce     []byte            `json:"nonce"`
 	Metadata  map[string]string `json:"metadata,omitempty"`
+}
+
+// Id return the identifier of the version
+func (v *Version) Id() entity.Id {
+	if v.id == "" {
+		// something went really wrong
+		panic("version's id not set")
+	}
+	if v.id == entity.UnsetId {
+		// This means we are trying to get the version's Id *before* it has been stored.
+		// As the Id is computed based on the actual bytes written on the disk, we are going to predict
+		// those and then get the Id. This is safe as it will be the exact same code writing on disk later.
+		data, err := json.Marshal(v)
+		if err != nil {
+			panic(err)
+		}
+
+		v.id = deriveId(data)
+	}
+	return v.id
+}
+
+func deriveId(data []byte) entity.Id {
+	sum := sha256.Sum256(data)
+	return entity.Id(fmt.Sprintf("%x", sum))
 }
 
 // Make a deep copy
@@ -102,10 +133,14 @@ func (v *Version) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	if aux.FormatVersion != formatVersion {
-		return fmt.Errorf("unknown format version %v", aux.FormatVersion)
+	if aux.FormatVersion < formatVersion {
+		return fmt.Errorf("outdated repository format, please use https://github.com/MichaelMure/git-bug-migration to upgrade")
+	}
+	if aux.FormatVersion > formatVersion {
+		return fmt.Errorf("your version of git-bug is too old for this repository (identity format %v), please upgrade to the latest version", aux.FormatVersion)
 	}
 
+	v.id = deriveId(data)
 	v.time = aux.Time
 	v.unixTime = aux.UnixTime
 	v.name = aux.Name
@@ -131,11 +166,9 @@ func (v *Version) Validate() error {
 	if text.Empty(v.name) && text.Empty(v.login) {
 		return fmt.Errorf("either name or login should be set")
 	}
-
 	if strings.Contains(v.name, "\n") {
 		return fmt.Errorf("name should be a single line")
 	}
-
 	if !text.Safe(v.name) {
 		return fmt.Errorf("name is not fully printable")
 	}
@@ -143,7 +176,6 @@ func (v *Version) Validate() error {
 	if strings.Contains(v.login, "\n") {
 		return fmt.Errorf("login should be a single line")
 	}
-
 	if !text.Safe(v.login) {
 		return fmt.Errorf("login is not fully printable")
 	}
@@ -151,7 +183,6 @@ func (v *Version) Validate() error {
 	if strings.Contains(v.email, "\n") {
 		return fmt.Errorf("email should be a single line")
 	}
-
 	if !text.Safe(v.email) {
 		return fmt.Errorf("email is not fully printable")
 	}
@@ -162,6 +193,9 @@ func (v *Version) Validate() error {
 
 	if len(v.nonce) > 64 {
 		return fmt.Errorf("nonce is too big")
+	}
+	if len(v.nonce) < 20 {
+		return fmt.Errorf("nonce is too small")
 	}
 
 	for _, k := range v.keys {
@@ -183,13 +217,11 @@ func (v *Version) Write(repo repository.Repo) (repository.Hash, error) {
 	}
 
 	data, err := json.Marshal(v)
-
 	if err != nil {
 		return "", err
 	}
 
 	hash, err := repo.StoreData(data)
-
 	if err != nil {
 		return "", err
 	}
@@ -208,6 +240,7 @@ func makeNonce(len int) []byte {
 
 // SetMetadata store arbitrary metadata about a version or an Identity in general
 // If the Version has been commit to git already, it won't be overwritten.
+// Beware: changing the metadata on a version will change it's ID
 func (v *Version) SetMetadata(key string, value string) {
 	if v.metadata == nil {
 		v.metadata = make(map[string]string)

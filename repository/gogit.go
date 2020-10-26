@@ -653,6 +653,24 @@ func (repo *GoGitRepo) getClock(name string) (lamport.Clock, error) {
 	return nil, err
 }
 
+// Increment is equivalent to c = GetOrCreateClock(name) + c.Increment()
+func (repo *GoGitRepo) Increment(name string) (lamport.Time, error) {
+	c, err := repo.GetOrCreateClock(name)
+	if err != nil {
+		return lamport.Time(0), err
+	}
+	return c.Increment()
+}
+
+// Witness is equivalent to c = GetOrCreateClock(name) + c.Witness(time)
+func (repo *GoGitRepo) Witness(name string, time lamport.Time) error {
+	c, err := repo.GetOrCreateClock(name)
+	if err != nil {
+		return err
+	}
+	return c.Witness(time)
+}
+
 // AddRemote add a new remote to the repository
 // Not in the interface because it's only used for testing
 func (repo *GoGitRepo) AddRemote(name string, url string) error {

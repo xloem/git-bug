@@ -121,6 +121,12 @@ type RepoClock interface {
 	// GetOrCreateClock return a Lamport clock stored in the Repo.
 	// If the clock doesn't exist, it's created.
 	GetOrCreateClock(name string) (lamport.Clock, error)
+
+	// Increment is equivalent to c = GetOrCreateClock(name) + c.Increment()
+	Increment(name string) (lamport.Time, error)
+
+	// Witness is equivalent to c = GetOrCreateClock(name) + c.Witness(time)
+	Witness(name string, time lamport.Time) error
 }
 
 // ClockLoader hold which logical clock need to exist for an entity and

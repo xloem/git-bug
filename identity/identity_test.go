@@ -15,23 +15,15 @@ func TestIdentityCommitLoad(t *testing.T) {
 
 	// single version
 
-	identity := &Identity{
-		id: entity.UnsetId,
-		versions: []*Version{
-			{
-				name:  "René Descartes",
-				email: "rene.descartes@example.com",
-			},
-		},
-	}
+	identity := NewIdentity("René Descartes", "rene.descartes@example.com")
 
 	err := identity.Commit(mockRepo)
 
-	assert.Nil(t, err)
-	assert.NotEmpty(t, identity.id)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, identity.Id())
 
-	loaded, err := ReadLocal(mockRepo, identity.id)
-	assert.Nil(t, err)
+	loaded, err := ReadLocal(mockRepo, identity.Id())
+	assert.NoError(t, err)
 	commitsAreSet(t, loaded)
 	assert.Equal(t, identity, loaded)
 
@@ -69,11 +61,11 @@ func TestIdentityCommitLoad(t *testing.T) {
 
 	err = identity.Commit(mockRepo)
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotEmpty(t, identity.id)
 
 	loaded, err = ReadLocal(mockRepo, identity.id)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	commitsAreSet(t, loaded)
 	assert.Equal(t, identity, loaded)
 
@@ -99,11 +91,11 @@ func TestIdentityCommitLoad(t *testing.T) {
 
 	err = identity.Commit(mockRepo)
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotEmpty(t, identity.id)
 
 	loaded, err = ReadLocal(mockRepo, identity.id)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	commitsAreSet(t, loaded)
 	assert.Equal(t, identity, loaded)
 }
@@ -221,7 +213,7 @@ func TestMetadata(t *testing.T) {
 
 	// reload
 	loaded, err := ReadLocal(mockRepo, identity.id)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	assertHasKeyValue(t, loaded.ImmutableMetadata(), "key1", "value1")
 	assertHasKeyValue(t, loaded.MutableMetadata(), "key1", "value2")
@@ -248,7 +240,7 @@ func TestJSON(t *testing.T) {
 
 	// commit to make sure we have an Id
 	err := identity.Commit(mockRepo)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotEmpty(t, identity.id)
 
 	// serialize

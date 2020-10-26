@@ -31,9 +31,6 @@ var _ Interface = &Identity{}
 var _ entity.Interface = &Identity{}
 
 type Identity struct {
-	// Id used as unique identifier
-	id entity.Id
-
 	// all the successive version of the identity
 	versions []*Version
 
@@ -43,9 +40,9 @@ type Identity struct {
 
 func NewIdentity(name string, email string) *Identity {
 	return &Identity{
-		id: entity.UnsetId,
 		versions: []*Version{
 			{
+				id:    entity.UnsetId,
 				name:  name,
 				email: email,
 				nonce: makeNonce(20),
@@ -54,16 +51,17 @@ func NewIdentity(name string, email string) *Identity {
 	}
 }
 
-func NewIdentityFull(name string, email string, login string, avatarUrl string) *Identity {
+func NewIdentityFull(name string, email string, login string, avatarUrl string, keys []*Key) *Identity {
 	return &Identity{
-		id: entity.UnsetId,
 		versions: []*Version{
 			{
+				id:        entity.UnsetId,
 				name:      name,
 				email:     email,
 				login:     login,
 				avatarURL: avatarUrl,
 				nonce:     makeNonce(20),
+				keys:      keys,
 			},
 		},
 	}
@@ -94,7 +92,7 @@ func NewFromGitUser(repo repository.Repo) (*Identity, error) {
 // MarshalJSON will only serialize the id
 func (i *Identity) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&IdentityStub{
-		id: i.id,
+		id: i.Id(),
 	})
 }
 
@@ -127,28 +125,25 @@ func read(repo repository.Repo, ref string) (*Identity, error) {
 	}
 
 	hashes, err := repo.ListCommits(ref)
-
-	// TODO: this is not perfect, it might be a command invoke error
 	if err != nil {
 		return nil, ErrIdentityNotExist
 	}
-
-	i := &Identity{
-		id: id,
+	if len(hashes) == 0 {
+		return nil, fmt.Errorf("empty identity")
 	}
+
+	i := &Identity{}
 
 	for _, hash := range hashes {
 		entries, err := repo.ReadTree(hash)
 		if err != nil {
 			return nil, errors.Wrap(err, "can't list git tree entries")
 		}
-
 		if len(entries) != 1 {
 			return nil, fmt.Errorf("invalid identity data at hash %s", hash)
 		}
 
 		entry := entries[0]
-
 		if entry.Name != versionEntryName {
 			return nil, fmt.Errorf("invalid identity data at hash %s", hash)
 		}
@@ -160,7 +155,6 @@ func read(repo repository.Repo, ref string) (*Identity, error) {
 
 		var version Version
 		err = json.Unmarshal(data, &version)
-
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to decode Identity version json %s", hash)
 		}
@@ -246,6 +240,7 @@ func (i *Identity) Mutate(f func(orig Mutator) Mutator) {
 		login:     mutated.Login,
 		avatarURL: mutated.AvatarUrl,
 		keys:      mutated.Keys,
+		nonce:     makeNonce(20),
 	})
 }
 
@@ -301,32 +296,16 @@ func (i *Identity) Commit(repo repository.ClockedRepo) error {
 		} else {
 			commitHash, err = repo.StoreCommit(treeHash)
 		}
-
 		if err != nil {
 			return err
 		}
 
 		i.lastCommit = commitHash
 		v.commitHash = commitHash
-
-		// if it was the first commit, use the commit hash as the Identity id
-		if i.id == "" || i.id == entity.UnsetId {
-			i.id = entity.Id(commitHash)
-		}
 	}
 
-	if i.id == "" {
-		panic("identity with no id")
-	}
-
-	ref := fmt.Sprintf("%s%s", identityRefPattern, i.id)
-	err := repo.UpdateRef(ref, i.lastCommit)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	ref := fmt.Sprintf("%s%s", identityRefPattern, i.Id().String())
+	return repo.UpdateRef(ref, i.lastCommit)
 }
 
 func (i *Identity) CommitAsNeeded(repo repository.ClockedRepo) error {
@@ -369,7 +348,7 @@ func (i *Identity) NeedCommit() bool {
 // confident enough to implement that. I choose the strict fast-forward only approach,
 // despite it's potential problem with two different version as mentioned above.
 func (i *Identity) Merge(repo repository.Repo, other *Identity) (bool, error) {
-	if i.id != other.id {
+	if i.Id() != other.Id() {
 		return false, errors.New("merging unrelated identities is not supported")
 	}
 
@@ -394,7 +373,7 @@ func (i *Identity) Merge(repo repository.Repo, other *Identity) (bool, error) {
 	}
 
 	if modified {
-		err := repo.UpdateRef(identityRefPattern+i.id.String(), i.lastCommit)
+		err := repo.UpdateRef(identityRefPattern+i.Id().String(), i.lastCommit)
 		if err != nil {
 			return false, err
 		}
@@ -423,11 +402,6 @@ func (i *Identity) Validate() error {
 		lastTime = v.time
 	}
 
-	// The identity Id should be the hash of the first commit
-	if i.versions[0].commitHash != "" && string(i.versions[0].commitHash) != i.id.String() {
-		return fmt.Errorf("identity id should be the first commit hash")
-	}
-
 	return nil
 }
 
@@ -441,12 +415,12 @@ func (i *Identity) lastVersion() *Version {
 
 // Id return the Identity identifier
 func (i *Identity) Id() entity.Id {
-	if i.id == "" || i.id == entity.UnsetId {
+	if len(i.versions) == 0 {
 		// simply panic as it would be a coding error
-		// (using an id of an identity not stored yet)
+		// (using an id of an identity without version yet)
 		panic("no id yet")
 	}
-	return i.id
+	return i.versions[0].Id()
 }
 
 // Name return the last version of the name
@@ -561,8 +535,10 @@ func (i *Identity) MutableMetadata() map[string]string {
 	return metadata
 }
 
-// addVersionForTest add a new version to the identity
-// Only for testing !
-func (i *Identity) addVersionForTest(version *Version) {
-	i.versions = append(i.versions, version)
-}
+// // addVersionForTest add a new version to the identity
+// // Only for testing !
+// func (i *Identity) addVersionForTest(version *Version) {
+// 	version.id = entity.UnsetId
+// 	version.nonce = makeNonce(20)
+// 	i.versions = append(i.versions, version)
+// }
