@@ -2,6 +2,7 @@ package commands
 
 import (
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/MichaelMure/git-bug/input"
 )
@@ -12,6 +13,7 @@ type userCreateOptions struct {
 	avatar   string
 	login    string
 	metadata map[string]string
+	flags    *pflag.FlagSet
 }
 
 func newUserCreateCommand() *cobra.Command {
@@ -24,6 +26,7 @@ func newUserCreateCommand() *cobra.Command {
 		PreRunE:  loadBackend(env),
 		PostRunE: closeBackend(env),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			options.flags = cmd.Flags()
 			return runUserCreate(env, options)
 		},
 	}
@@ -49,7 +52,7 @@ func runUserCreate(env *Env, opts userCreateOptions) error {
 	var err error
 
 	name := opts.name
-	if name == "" {
+	if opts.flags.Lookup("name") == nil {
 		preName, err := env.backend.GetUserName()
 		if err != nil {
 			return err
@@ -62,7 +65,7 @@ func runUserCreate(env *Env, opts userCreateOptions) error {
 	}
 
 	email := opts.email
-	if email == "" {
+	if opts.flags.Lookup("email") == nil {
 		preEmail, err := env.backend.GetUserEmail()
 		if err != nil {
 			return err
@@ -75,7 +78,7 @@ func runUserCreate(env *Env, opts userCreateOptions) error {
 	}
 
 	avatarURL := opts.avatar
-	if avatarURL == "" {
+	if opts.flags.Lookup("avatar") == nil {
 		avatarURL, err = input.Prompt("Avatar URL", "avatar")
 		if err != nil {
 			return err
