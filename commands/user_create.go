@@ -8,12 +8,13 @@ import (
 )
 
 type userCreateOptions struct {
-	name     string
-	email    string
-	avatar   string
-	login    string
-	metadata map[string]string
-	flags    *pflag.FlagSet
+	name         string
+	email        string
+	avatar       string
+	login        string
+	metadata     map[string]string
+	metadataFile map[string]string
+	flags        *pflag.FlagSet
 }
 
 func newUserCreateCommand() *cobra.Command {
@@ -42,8 +43,10 @@ func newUserCreateCommand() *cobra.Command {
 		"Provide the user's avatar url instead of prompting")
 	flags.StringVarP(&options.login, "login", "l", "",
 		"Provide a login for the user")
-	flags.StringToStringVarP(&options.metadata, "metadata", "d", nil,
+	flags.StringToStringVarP(&options.metadata, "metadata", "d", make(map[string]string),
 		"Provide metadata to associate with the user")
+	flags.StringToStringVarP(&options.metadataFile, "metadatafile", "D", nil,
+		"Provide filenames of metadata to associate with the user")
 
 	return cmd
 }
@@ -83,6 +86,20 @@ func runUserCreate(env *Env, opts userCreateOptions) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	if opts.metadataFile != nil {
+		for name, metadataFile := range opts.metadataFile {
+			metadata, err := input.FileInput(metadataFile)
+			if err != nil {
+				return err
+			}
+			opts.metadata[name] = metadata
+		}
+	}
+
+	if len(opts.metadata) == 0 {
+		opts.metadata = nil
 	}
 	
 	id, err := env.backend.NewIdentityRaw(name, email, opts.login, avatarURL, opts.metadata)
