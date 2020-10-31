@@ -167,16 +167,16 @@ func (c *BugCache) ForceChangeLabelsRaw(author *IdentityCache, unixTime int64, a
 }
 
 func (c *BugCache) Open() (*bug.SetStatusOperation, error) {
-	return c.OpenWithTime(time.Now().Unix())
+	return c.OpenRawForUser(time.Now().Unix(), nil)
 }
 
-func (c *BugCache) OpenWithTime(unixTime int64) (*bug.SetStatusOperation, error) {
+func (c *BugCache) OpenRawForUser(unixTime int64, metadata map[string]string) (*bug.SetStatusOperation, error) {
 	author, err := c.repoCache.GetUserIdentity()
 	if err != nil {
 		return nil, err
 	}
 
-	return c.OpenRaw(author, unixTime, nil)
+	return c.OpenRaw(author, unixTime, metadata)
 }
 
 func (c *BugCache) OpenRaw(author *IdentityCache, unixTime int64, metadata map[string]string) (*bug.SetStatusOperation, error) {
@@ -196,16 +196,16 @@ func (c *BugCache) OpenRaw(author *IdentityCache, unixTime int64, metadata map[s
 }
 
 func (c *BugCache) Close() (*bug.SetStatusOperation, error) {
-	return c.CloseWithTime(time.Now().Unix())
+	return c.CloseRawForUser(time.Now().Unix(), nil)
 }
 
-func (c *BugCache) CloseWithTime(unixTime int64) (*bug.SetStatusOperation, error) {
+func (c *BugCache) CloseRawForUser(unixTime int64, metadata map[string]string) (*bug.SetStatusOperation, error) {
 	author, err := c.repoCache.GetUserIdentity()
 	if err != nil {
 		return nil, err
 	}
 
-	return c.CloseRaw(author, unixTime, nil)
+	return c.CloseRaw(author, unixTime, metadata)
 }
 
 func (c *BugCache) CloseRaw(author *IdentityCache, unixTime int64, metadata map[string]string) (*bug.SetStatusOperation, error) {

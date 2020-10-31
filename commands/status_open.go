@@ -9,6 +9,7 @@ import (
 
 type statusOpenOptions struct {
 	unixTime    int64
+	metadata    map[string]string
 }
 
 func newStatusOpenCommand() *cobra.Command {
@@ -30,6 +31,8 @@ func newStatusOpenCommand() *cobra.Command {
 
 	flags.Int64VarP(&options.unixTime, "time", "u", 0,
 		"Set the unix timestamp of a status change, in seconds since 1970-01-01")
+	flags.StringToStringVarP(&options.metadata, "metadata", "d", nil,
+		"Provide metadata to associate with the status change")
 
 	return cmd
 }
@@ -44,7 +47,7 @@ func runStatusOpen(env *Env, args []string, opts statusOpenOptions) error {
 		opts.unixTime = time.Now().Unix()
 	}
 
-	_, err = b.OpenWithTime(opts.unixTime)
+	_, err = b.OpenRawForUser(opts.unixTime, opts.metadata)
 	if err != nil {
 		return err
 	}
