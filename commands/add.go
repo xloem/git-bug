@@ -13,6 +13,7 @@ type addOptions struct {
 	message     string
 	messageFile string
 	unixTime    int64
+	metadata    map[string]string
 }
 
 func newAddCommand() *cobra.Command {
@@ -40,6 +41,8 @@ func newAddCommand() *cobra.Command {
 		"Take the message from the given file. Use - to read the message from the standard input")
 	flags.Int64VarP(&options.unixTime, "time", "u", 0,
 		"Set the unix timestamp of the commit, in seconds since 1970-01-01")
+	flags.StringToStringVarP(&options.metadata, "metadata", "d", nil,
+		"Provide metadata to associate with the bug")
 
 	return cmd
 }
@@ -69,7 +72,7 @@ func runAdd(env *Env, opts addOptions) error {
 		opts.unixTime = time.Now().Unix()
 	}
 
-	b, _, err := env.backend.NewBugWithFilesAndTime(opts.unixTime, opts.title, opts.message, nil)
+	b, _, err := env.backend.NewBugRawForUser(opts.unixTime, opts.title, opts.message, nil, opts.metadata)
 
 	if err != nil {
 		return err

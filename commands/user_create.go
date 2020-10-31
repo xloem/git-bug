@@ -42,7 +42,7 @@ func newUserCreateCommand() *cobra.Command {
 		"Provide the user's avatar url instead of prompting")
 	flags.StringVarP(&options.login, "login", "l", "",
 		"Provide a login for the user")
-	flags.StringToStringVarP(&options.metadata, "metadata", "m", nil,
+	flags.StringToStringVarP(&options.metadata, "metadata", "d", nil,
 		"Provide metadata to associate with the user")
 
 	return cmd
