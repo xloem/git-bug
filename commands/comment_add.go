@@ -10,9 +10,11 @@ import (
 )
 
 type commentAddOptions struct {
-	messageFile string
-	message     string
-	unixTime    int64
+	messageFile  string
+	message      string
+	unixTime     int64
+	metadata     map[string]string
+	metadataFile map[string]string
 }
 
 func newCommentAddCommand() *cobra.Command {
@@ -40,6 +42,12 @@ func newCommentAddCommand() *cobra.Command {
 
 	flags.Int64VarP(&options.unixTime, "time", "u", 0,
 		"Set the unix timestamp of the commit, in seconds since 1970-01-01")
+
+	flags.StringToStringVarP(&options.metadata, "metadata", "d", make(map[string]string),
+		"Provide metadata to associate with the bug")
+
+	flags.StringToStringVarP(&options.metadataFile, "metadatafile", "D", nil,
+		"Provide filenames of metadata to associate with the bug")
 
 	return cmd
 }
@@ -72,7 +80,21 @@ func runCommentAdd(env *Env, opts commentAddOptions, args []string) error {
 		opts.unixTime = time.Now().Unix()
 	}
 
-	_, err = b.AddCommentWithFilesAndTime(opts.unixTime, opts.message, nil)
+	if opts.metadataFile != nil {
+		for name, metadataFile := range opts.metadataFile {
+			metadata, err := input.FileInput(metadataFile)
+			if err != nil {
+				return err
+			}
+			opts.metadata[name] = metadata
+		}
+	}
+
+	if len(opts.metadata) == 0 {
+		opts.metadata = nil
+	}
+
+	_, err = b.AddCommentRawForUser(opts.unixTime, opts.message, nil, opts.metadata)
 	if err != nil {
 		return err
 	}

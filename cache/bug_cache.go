@@ -72,20 +72,16 @@ func (c *BugCache) ResolveOperationWithMetadata(key string, value string) (entit
 }
 
 func (c *BugCache) AddComment(message string) (*bug.AddCommentOperation, error) {
-	return c.AddCommentWithFiles(message, nil)
+	return c.AddCommentRawForUser(time.Now().Unix(), message, nil, nil)
 }
 
-func (c *BugCache) AddCommentWithFiles(message string, files []repository.Hash) (*bug.AddCommentOperation, error) {
-	return c.AddCommentWithFilesAndTime(time.Now().Unix(), message, files)
-}
-
-func (c *BugCache) AddCommentWithFilesAndTime(unixTime int64, message string, files []repository.Hash) (*bug.AddCommentOperation, error) {
+func (c *BugCache) AddCommentRawForUser(unixTime int64, message string, files []repository.Hash, metadata map[string]string) (*bug.AddCommentOperation, error) {
 	author, err := c.repoCache.GetUserIdentity()
 	if err != nil {
 		return nil, err
 	}
 
-	return c.AddCommentRaw(author, unixTime, message, files, nil)
+	return c.AddCommentRaw(author, unixTime, message, files, metadata)
 }
 
 func (c *BugCache) AddCommentRaw(author *IdentityCache, unixTime int64, message string, files []repository.Hash, metadata map[string]string) (*bug.AddCommentOperation, error) {
