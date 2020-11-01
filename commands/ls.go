@@ -132,23 +132,25 @@ type JSONBugExcerpt struct {
 	Participants []JSONIdentity `json:"participants"`
 	Author       JSONIdentity   `json:"author"`
 
-	Comments int               `json:"comments"`
-	Metadata map[string]string `json:"metadata"`
+	Comments int                   `json:"comments"`
+	Metadata map[string]string     `json:"metadata"`
+	EditMetadata map[string]string `json:"edit_metadata"`
 }
 
 func lsJsonFormatter(env *Env, bugExcerpts []*cache.BugExcerpt) error {
 	jsonBugs := make([]JSONBugExcerpt, len(bugExcerpts))
 	for i, b := range bugExcerpts {
 		jsonBug := JSONBugExcerpt{
-			Id:         b.Id.String(),
-			HumanId:    b.Id.Human(),
-			CreateTime: NewJSONTime(b.CreateTime(), b.CreateLamportTime),
-			EditTime:   NewJSONTime(b.EditTime(), b.EditLamportTime),
-			Status:     b.Status.String(),
-			Labels:     b.Labels,
-			Title:      b.Title,
-			Comments:   b.LenComments,
-			Metadata:   b.CreateMetadata,
+			Id:           b.Id.String(),
+			HumanId:      b.Id.Human(),
+			CreateTime:   NewJSONTime(b.CreateTime(), b.CreateLamportTime),
+			EditTime:     NewJSONTime(b.EditTime(), b.EditLamportTime),
+			Status:       b.Status.String(),
+			Labels:       b.Labels,
+			Title:        b.Title,
+			Comments:     b.LenComments,
+			Metadata:     b.CreateMetadata,
+			EditMetadata: b.EditMetadata,
 		}
 
 		author, err := env.backend.ResolveIdentityExcerpt(b.AuthorId)

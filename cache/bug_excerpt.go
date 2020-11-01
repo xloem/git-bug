@@ -35,6 +35,7 @@ type BugExcerpt struct {
 	Participants []entity.Id
 
 	CreateMetadata map[string]string
+	EditMetadata map[string]string
 }
 
 // identity.Bare data are directly embedded in the bug excerpt
@@ -84,6 +85,7 @@ func NewBugExcerpt(b bug.Interface, snap *bug.Snapshot) *BugExcerpt {
 		Title:             snap.Title,
 		LenComments:       len(snap.Comments),
 		CreateMetadata:    b.FirstOp().AllMetadata(),
+		EditMetadata:      b.LastOp().AllMetadata(),
 	}
 
 	switch snap.Author.(type) {

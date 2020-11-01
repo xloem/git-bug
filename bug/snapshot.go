@@ -31,18 +31,38 @@ func (snap *Snapshot) Id() entity.Id {
 	return snap.id
 }
 
+// Lookup for the very first operation
+func (snap *Snapshot) FirstOp() Operation {
+	if len(snap.Operations) == 0 {
+		return nil
+	}
+
+	return snap.Operations[0]
+}
+
+// Lookup for the very last operation
+func (snap *Snapshot) LastOp() Operation {
+	if len(snap.Operations) == 0 {
+		return nil
+	}
+	
+	return snap.Operations[len(snap.Operations)-1]
+}
+
 // Return the last time a bug was modified
 func (snap *Snapshot) EditTime() time.Time {
-	if len(snap.Operations) == 0 {
+	op := snap.LastOp()
+
+	if op == nil {
 		return time.Unix(0, 0)
 	}
 
-	return snap.Operations[len(snap.Operations)-1].Time()
+	return op.Time()
 }
 
 // GetCreateMetadata return the creation metadata
 func (snap *Snapshot) GetCreateMetadata(key string) (string, bool) {
-	return snap.Operations[0].GetMetadata(key)
+	return snap.FirstOp().GetMetadata(key)
 }
 
 // SearchTimelineItem will search in the timeline for an item matching the given hash
