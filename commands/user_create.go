@@ -55,7 +55,7 @@ func runUserCreate(env *Env, opts userCreateOptions) error {
 	var err error
 
 	name := opts.name
-	if opts.flags.Lookup("name") == nil {
+	if ! opts.flags.Changed("name") {
 		preName, err := env.backend.GetUserName()
 		if err != nil {
 			return err
@@ -68,7 +68,7 @@ func runUserCreate(env *Env, opts userCreateOptions) error {
 	}
 
 	email := opts.email
-	if opts.flags.Lookup("email") == nil {
+	if ! opts.flags.Changed("email") {
 		preEmail, err := env.backend.GetUserEmail()
 		if err != nil {
 			return err
@@ -81,7 +81,7 @@ func runUserCreate(env *Env, opts userCreateOptions) error {
 	}
 
 	avatarURL := opts.avatar
-	if opts.flags.Lookup("avatar") == nil {
+	if ! opts.flags.Changed("avatar") {
 		avatarURL, err = input.Prompt("Avatar URL", "avatar")
 		if err != nil {
 			return err

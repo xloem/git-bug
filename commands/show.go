@@ -36,7 +36,7 @@ func newShowCommand() *cobra.Command {
 	flags.SortFlags = false
 
 	flags.StringVarP(&options.fields, "field", "", "",
-		"Select field to display. Valid values are [author,authorEmail,createTime,lastEdit,humanId,id,labels,shortId,status,title,actors,participants]")
+		"Select field to display. Valid values are [author,authorEmail,createTime,lastEdit,humanId,id,labels,shortId,status,title,actors,participants,creationMetadata]")
 	flags.StringVarP(&options.format, "format", "f", "default",
 		"Select the output formatting style. Valid values are [default,json,org-mode]")
 
@@ -87,6 +87,10 @@ func runShow(env *Env, opts showOptions, args []string) error {
 			env.out.Printf("%s\n", snap.Status)
 		case "title":
 			env.out.Printf("%s\n", snap.Title)
+		case "creationMetadata":
+			for key, value := range snap.Operations[0].AllMetadata() {
+				env.out.Printf("%s\n%s\n", key, value)
+			}
 		default:
 			return fmt.Errorf("\nUnsupported field: %s\n", opts.fields)
 		}
